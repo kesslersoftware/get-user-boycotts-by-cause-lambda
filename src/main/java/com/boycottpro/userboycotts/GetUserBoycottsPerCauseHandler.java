@@ -98,7 +98,6 @@ public class GetUserBoycottsPerCauseHandler implements RequestHandler<APIGateway
         if (matchingRecords.isEmpty()) {
             // No boycott found for this user+company
             ResponsePojo result = new ResponsePojo();
-            result.setFollowing(false);
             return result;
         }
 
@@ -120,11 +119,9 @@ public class GetUserBoycottsPerCauseHandler implements RequestHandler<APIGateway
                 .orElse(null);
         // Populate final response
         ResponsePojo result = new ResponsePojo();
-        result.setFollowing(true);
         result.setCompanies(companies);
         result.setCause_id(causeId);
         result.setCause_desc(earliest.getOrDefault("cause_desc", AttributeValue.fromS("")).s());
-        result.setFollowingSince(earliest.getOrDefault("timestamp", AttributeValue.fromS("0")).s());
         return result;
     }
 

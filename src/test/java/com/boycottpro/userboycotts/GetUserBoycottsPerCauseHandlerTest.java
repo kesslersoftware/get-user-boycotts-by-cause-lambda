@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,7 +41,6 @@ public class GetUserBoycottsPerCauseHandlerTest {
         String causeId = "cause456";
 
         Map<String, String> pathParams = Map.of(
-                "user_id", userId,
                 "cause_id", causeId
         );
 
@@ -56,10 +56,17 @@ public class GetUserBoycottsPerCauseHandlerTest {
         when(dynamoDb.query(any(QueryRequest.class)))
                 .thenReturn(QueryResponse.builder().items(List.of(item)).build());
 
-        APIGatewayProxyRequestEvent request = new APIGatewayProxyRequestEvent();
-        request.setPathParameters(pathParams);
+        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent();
+        Map<String, String> claims = Map.of("sub", "11111111-2222-3333-4444-555555555555");
+        Map<String, Object> authorizer = new HashMap<>();
+        authorizer.put("claims", claims);
 
-        APIGatewayProxyResponseEvent response = handler.handleRequest(request, mock(Context.class));
+        APIGatewayProxyRequestEvent.ProxyRequestContext rc = new APIGatewayProxyRequestEvent.ProxyRequestContext();
+        rc.setAuthorizer(authorizer);
+        event.setRequestContext(rc);
+        event.setPathParameters(pathParams);
+
+        APIGatewayProxyResponseEvent response = handler.handleRequest(event, mock(Context.class));
 
         assertEquals(200, response.getStatusCode());
         assertTrue(response.getBody().contains("TestCorp"));
@@ -68,20 +75,24 @@ public class GetUserBoycottsPerCauseHandlerTest {
 
     @Test
     public void testHandleRequest_missingUserId_returns400() throws JsonProcessingException {
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-                .withPathParameters(Map.of("cause_id", "cause456"));
+        APIGatewayProxyRequestEvent event = null;
 
-        APIGatewayProxyResponseEvent response = handler.handleRequest(event, mock(Context.class));
+        var response = handler.handleRequest(event, mock(Context.class));
 
-        assertEquals(400, response.getStatusCode());
-        ResponseMessage message = objectMapper.readValue(response.getBody(), ResponseMessage.class);
-        assertTrue(message.getDevMsg().contains("user_id not present"));
+        assertEquals(401, response.getStatusCode());
+        assertTrue(response.getBody().contains("Unauthorized"));
     }
 
     @Test
     public void testHandleRequest_missingCauseId_returns400() throws JsonProcessingException {
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-                .withPathParameters(Map.of("user_id", "user123"));
+        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent();
+        Map<String, String> claims = Map.of("sub", "11111111-2222-3333-4444-555555555555");
+        Map<String, Object> authorizer = new HashMap<>();
+        authorizer.put("claims", claims);
+
+        APIGatewayProxyRequestEvent.ProxyRequestContext rc = new APIGatewayProxyRequestEvent.ProxyRequestContext();
+        rc.setAuthorizer(authorizer);
+        event.setRequestContext(rc);
 
         APIGatewayProxyResponseEvent response = handler.handleRequest(event, mock(Context.class));
 
@@ -96,7 +107,14 @@ public class GetUserBoycottsPerCauseHandlerTest {
                 .thenThrow(RuntimeException.class);
 
         APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent()
-                .withPathParameters(Map.of("user_id", "user123", "cause_id", "cause456"));
+                .withPathParameters(Map.of("cause_id", "cause456"));;
+        Map<String, String> claims = Map.of("sub", "11111111-2222-3333-4444-555555555555");
+        Map<String, Object> authorizer = new HashMap<>();
+        authorizer.put("claims", claims);
+
+        APIGatewayProxyRequestEvent.ProxyRequestContext rc = new APIGatewayProxyRequestEvent.ProxyRequestContext();
+        rc.setAuthorizer(authorizer);
+        event.setRequestContext(rc);
 
         APIGatewayProxyResponseEvent response = handler.handleRequest(event, mock(Context.class));
 

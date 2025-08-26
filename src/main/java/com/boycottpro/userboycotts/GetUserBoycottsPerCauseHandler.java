@@ -8,6 +8,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.boycottpro.models.ResponseMessage;
 import com.boycottpro.userboycotts.models.CompanySummary;
 import com.boycottpro.userboycotts.models.ResponsePojo;
+import com.boycottpro.utilities.JwtUtility;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -33,35 +34,20 @@ public class GetUserBoycottsPerCauseHandler implements RequestHandler<APIGateway
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
         try {
+            String sub = JwtUtility.getSubFromRestEvent(event);
+            if (sub == null) return response(401, "Unauthorized");
             Map<String, String> pathParams = event.getPathParameters();
-            String userId = (pathParams != null) ? pathParams.get("user_id") : null;
-            if (userId == null || userId.isEmpty()) {
-                ResponseMessage message = new ResponseMessage(400,
-                        "sorry, there was an error processing your request",
-                        "user_id not present");
-                String responseBody = objectMapper.writeValueAsString(message);
-                return new APIGatewayProxyResponseEvent()
-                        .withStatusCode(400)
-                        .withHeaders(Map.of("Content-Type", "application/json"))
-                        .withBody(responseBody);
-            }
             String causeId = (pathParams != null) ? pathParams.get("cause_id") : null;
             if (causeId == null || causeId.isEmpty()) {
                 ResponseMessage message = new ResponseMessage(400,
                         "sorry, there was an error processing your request",
                         "cause_id not present");
                 String responseBody = objectMapper.writeValueAsString(message);
-                return new APIGatewayProxyResponseEvent()
-                        .withStatusCode(400)
-                        .withHeaders(Map.of("Content-Type", "application/json"))
-                        .withBody(responseBody);
+                return response(400,responseBody);
             }
-            ResponsePojo userBoycotts = getUserBoycottsByCause(userId, causeId);
+            ResponsePojo userBoycotts = getUserBoycottsByCause(sub, causeId);
             String responseBody = objectMapper.writeValueAsString(userBoycotts);
-            return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(200)
-                    .withHeaders(Map.of("Content-Type", "application/json"))
-                    .withBody(responseBody);
+            return response(200,responseBody);
         } catch (Exception e) {
             e.printStackTrace();
             ResponseMessage message = new ResponseMessage(500,
@@ -75,11 +61,14 @@ public class GetUserBoycottsPerCauseHandler implements RequestHandler<APIGateway
                 ex.printStackTrace();
                 throw new RuntimeException(ex);
             }
-            return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(500)
-                    .withHeaders(Map.of("Content-Type", "application/json"))
-                    .withBody(responseBody);
+            return response(500,responseBody);
         }
+    }
+    private APIGatewayProxyResponseEvent response(int status, String body) {
+        return new APIGatewayProxyResponseEvent()
+                .withStatusCode(status)
+                .withHeaders(Map.of("Content-Type", "application/json"))
+                .withBody(body);
     }
 
     private ResponsePojo getUserBoycottsByCause(String userId, String causeId) {

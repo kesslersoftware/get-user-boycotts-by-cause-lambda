@@ -1,0 +1,5 @@
+aws lambda update-function-code \
+    --function-name "get-user-boycotts-by-cause-lambda" \
+    --region "us-east-1" \
+    --profile "boycottpro-dev-dev" \
+    --zip-file "fileb://$(pwd -W)/target/get-user-boycotts-by-cause-lambda.jar"
